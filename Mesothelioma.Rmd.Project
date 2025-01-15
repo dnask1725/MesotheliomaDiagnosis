@@ -1,0 +1,2769 @@
+---
+title: "Predicting Mesothelioma Using Machine Learning"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+# Table of Contents
+- [Introduction of Dataset](#introduction)
+- [Main Content](#main-content)
+- [Subsection A](#subsection-a)
+- [Subsection B](#subsection-b)
+- [Conclusion](#conclusion)
+          
+# Introduction of dataset
+The dataset used in this project contains clinical and diagnostic data from patients suspected of having mesothelioma, a rare and aggressive cancer caused primarily by exposure to asbestos. The dataset includes 324 samples with features such as age, gender, asbestos exposure duration, pleural protein levels, and various lab test results (e.g., lactate dehydrogenase, albumin, and sedimentation). The target variable, diagnosis method, indicates whether mesothelioma is present (1) or absent (0). The dataset presents significant challenges, such as class imbalance, outliers, and the need for effective feature selection to ensure robust model performance.
+
+**Purpose of the Project**
+The goal of this project is to leverage machine learning techniques to develop predictive models that can aid in diagnosing mesothelioma. By analyzing patient data, this project aims to identify important features, handle class imbalance, and implement advanced algorithms to achieve high accuracy and reliability. The insights gained can potentially improve early detection, reduce misdiagnoses, and assist clinicians in decision-making.
+The link for dataset :
+
+https://archive.ics.uci.edu/dataset/351/mesothelioma+s+disease+data+set
+
+
+```markdown
+**Extra Information**
+Mesothelioma is a form of cancer that develops in the mesothelium, a thin layer of tissue covering internal organs, most commonly the lungs (pleura). It is often diagnosed late due to its long latency period and nonspecific early symptoms, such as chest pain, breathlessness, and fatigue. This makes early and accurate detection critical for improving patient outcomes. Biomarkers, such as pleural protein levels and lactate dehydrogenase, are commonly analyzed to aid in diagnosis. However, manual diagnosis remains time-consuming and prone to variability, making machine learning a valuable tool for automating and improving diagnostic accuracy.
+```
+
+
+
+```{r, echo=FALSE}
+library(readxl)
+
+file_path <- "C:/Users/Saniya Kate/Desktop/NEU/DA5030/Project/Project_3/Mesothelioma_data_set.xlsx"
+data <- read_excel(file_path, sheet = "Data")
+
+# Remove the 'diagnosis method' column
+data <- data[ , !(names(data) %in% c("class of diagnosis"))]
+
+column_names <- names(data)  # Get all column names
+new_order <- c(setdiff(column_names, 'diagnosis method'), 'diagnosis method')  # Exclude and append
+
+# Reorder the columns in the data frame
+data <- data[, new_order]
+
+# Display the first few rows of the updated dataset
+head(data)
+```
+I removed “class of diagnosis”  from the classification and feature selection phases, because it has the same values of “diagnosis method” target we predict
+
+## Features
+1.  “ache on chest” is related to the presence or absence 11
+in patient of pain in the abdomen area and in particular in chest in case of pleural 12
+mesothelioma.
+2.  “asbestos exposure” refers to whether or not a 14
+patient has been exposed to the asbestos during his/her life.
+3.  “cytology exam of pleural fluid” is a laboratory test to detect cancer cells 16
+and certain other cells in the area that surformats the lungs, the pleural space.
+4. “Dead or not” refers to whether or not a patient is still alive.
+5. "dyspnoea”, which means shortness of breath and refers 28
+to whether a patient has difficulty breathing.
+6. "Hemoglobin normality test” refers to the hemoglobin test that measures how 30
+much hemoglobin is in blood.
+7. “Pleural level of acidity” means whether or not the pleural fluid is lower than 38
+the normal pleural fluid
+8. “Pleural thickness on tomography” is a descriptive term given to describe any 43
+form of thickening involving either the parietal or visceral pleura.
+9. “Weakness” or asthenia refers to whether or not patients feel lack of strength.
+10. “City” refers to the place of provenance of the patients. The value 0 50
+means that the patient used to live in the city center, the value 1 refers to the city 51
+center surformatings, and so on. Finally, the value 8 means maximum distance from the 52
+city downtown among the patients locations
+11. The patients were divided in two groups based on “gender”. According to the original dataset curators, 1 means men and 0 means women.
+12. “habit of cigarette” is characterized by four category basedupon patient’s habit of smoking, where 0 means non-smoker, 1 means rare smoker, 2 means regular smoker, 
+and 3 means frequent smoker
+13. r “keep side”, the possible values are 0, 1 and 2. This feature is related to the side 
+of the lung which has pleural plaques or clinical signs similar to mesothelioma traces
+14. t “performance status” plays a role both in shaping prognosis and in
+determining the best treatment for a patient with cancer
+15. type of malignant mesothelioma” refers to mesothelioma staging to which the patient’s symptoms seem to belong. 0 meaning no evidence of a primary tumor (T0 phase in the TNM 
+classification) or initial phase of the disease (T1 phase in the TNM classification); 1 
+meaning middle phase of the disease (T2 and T3 phases in the TNM classification); 2
+meaning last and advanced phase of the disease (T4 phase in the TNM classification).
+16. The numerical “age” of 84the samples goes from 19 to 85 years.
+17. “Duration of symptoms” refers to the time period, in years, in which the patients
+show symptoms
+18.  “duration of asbestos exposure”. Asbestos exposure is the leading cause for mesothelioma
+19. "albumin"
+20. Alkaline phosphatase (ALP)” is a protein found in all body tissues
+21. Lactate dehydrogenase test (LDH)” is a protein that helps produce energy in
+the body
+22. C-reactive protein (CRP)”, an acute phase reactant, has been noted to be
+significantly elevated in patients with metastatic disease across a variety of solid organ
+and hematological malignancies, including pleural mesothelioma.
+23. "glucose"
+24. “white blood” and refers to the count of white blood cells (leukocytes) in the pleural fluid
+25. “platelet count (PLT)” is a lab test to measure how many platelets you have in blood
+26. “Pleural albumin” (not to be confused with “albumin”, that is another real-valued feature in this dataset) is the level of albumin in the pleural fluid
+27. A low level of “pleural fluid glucose” can be linked to infection.
+28. "pleural proteins"
+29.  “sedimentation rate” (sed rate) blood test measures how quickly red blood
+cells (erythrocytes) settle in a test tube in one hour
+30. "Total protein"
+31. "cell count (WBC)"
+32. "pleural.effusion"
+33. "pleural.level.of.acidity..pH." 
+34. “diagnosis method” has possible values are 0 and 1.They
+state if each row is related to a non-mesothelioma patient (value 0), or to a patient
+having a mesothelioma (value 1).
+
+
+# Data Exploration
+## Renaming features
+I changed some feature names to add clarity: “blood lactic dehydrogenise (LDH)” into “lactate dehydrogenase test”, “cell count (WBC)” into “white blood cells (WBC)”, “cytology” into “cytology exam of pleural fluid”, “hemoglobin (HGB)” into “hemoglobin normality test”, “keep side” into “lung side”, “pleural glucose” into “pleural fluid glucose”, and “white blood” into “pleural fluid WBC count”.
+
+```{r, echo=FALSE}
+colnames(data) <- gsub("blood lactic dehydrogenise \\(LDH\\)", "lactate dehydrogenase test", colnames(data))
+colnames(data) <- gsub("cell count \\(WBC\\)", "white blood cells (WBC)", colnames(data))
+colnames(data) <- gsub("cytology", "cytology exam of pleural fluid", colnames(data))
+colnames(data) <- gsub("hemoglobin \\(HGB\\)", "hemoglobin normality test", colnames(data))
+colnames(data) <- gsub("keep side", "lung side", colnames(data))
+colnames(data) <- gsub("pleural glucose", "pleural fluid glucose", colnames(data))
+colnames(data) <- gsub("^white blood$", "pleural fluid WBC count", colnames(data))  # Target exact "white blood"
+colnames(data) <- gsub("^cell count \\(WBC\\)$", "white blood cells (WBC)", colnames(data))  # Target exact match
+
+```
+          
+
+
+## Data Conversion
+Converts data to acceptable formats
+```{r, echo=FALSE}
+colnames(data) <- make.names(colnames(data), unique = TRUE)
+
+# List of columns to convert
+columns_to_convert <- c(
+  "platelet.count..PLT.", "sedimentation", "lactate.dehydrogenase.test", 
+  "alkaline.phosphatise..ALP.", "total.protein", "albumin", "glucose", 
+  "pleural.lactic.dehydrogenise", "pleural.protein", "pleural.albumin", 
+  "pleural.fluid.glucose", "duration.of.asbestos.exposure", 
+  "duration.of.symptoms", "age", "pleural.effusion", 
+  "pleural.thickness.on.tomography","pleural.fluid.WBC.count", "pleural.level.of.acidity..pH.","lung.side", "performance.status", "habit.of.cigarette", "type.of.MM")
+
+# Convert columns to numeric
+for (col in columns_to_convert) {
+  data[[col]] <- as.numeric(data[[col]])
+}
+
+data$diagnosis.method<- as.factor(data$diagnosis.method)
+
+```
+          
+
+
+
+## Missing values
+```{r, echo=FALSE}
+# Check for missing values in each column
+missing_values <- sum(is.na(data))
+
+#Display columns with missing values
+#missing_values[missing_values > 0]
+print(paste("Missing values found in the dataset:", missing_values))
+
+```
+
+## Vizualisations 
+### Boxplot for numeric data
+```{r, echo=FALSE}
+library(ggplot2)
+numeric_cols <- c(
+  "platelet.count..PLT.", "sedimentation", "lactate.dehydrogenase.test", 
+  "alkaline.phosphatise..ALP.", "total.protein", "albumin", "glucose", 
+  "pleural.lactic.dehydrogenise", "pleural.protein", "age")
+
+# Loop through each column in the list and create a boxplot
+for (col in numeric_cols) {
+  # Generate the boxplot for the column
+  p <- ggplot(data, aes(x = factor(1), y = !!sym(col))) +  # Use `sym()` and `!!` to unquote the column name
+    geom_boxplot(fill = "lightblue", color = "darkblue") +
+    labs(title = paste("Boxplot of", col), y = col, x = "") +
+    theme_minimal() +
+    theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())  # Remove x-axis elements
+  
+  # Print the plot
+  print(p)
+}
+```
+
+### Histograms
+```{r,echo=FALSE}
+hist(data$sedimentation, main = "Histogram of Sedimentation",
+        xlab = "sedimentation")
+
+hist(data$lactate.dehydrogenase.test, main= "Lactate dehydrogenase test", xlab = "LDT")
+
+hist(data$platelet.count..PLT., main= "Platelet count", xlab = "PLT")
+```
+
+
+# Data Cleaning and Shaping
+## Identifying outliers
+```{r, echo=FALSE}
+# Ensure numeric columns are explicitly handled
+numeric_columns <- c("platelet.count..PLT.", "sedimentation", "lactate.dehydrogenase.test", 
+  "alkaline.phosphatise..ALP.", "total.protein", "albumin", "glucose", 
+  "pleural.lactic.dehydrogenise", "pleural.protein", "pleural.albumin", 
+  "pleural.fluid.glucose", "duration.of.asbestos.exposure", 
+  "duration.of.symptoms", "age", "pleural.effusion", 
+  "pleural.thickness.on.tomography","pleural.fluid.WBC.count", "pleural.level.of.acidity..pH.")
+
+# Initialize a data frame to store the results
+outlier_summary <- data.frame(Feature = character(), Outlier_Count = numeric(), stringsAsFactors = FALSE)
+
+# Loop through each numeric column
+for (feature in numeric_columns) {
+  # Convert the feature to numeric (in case it's stored as character)
+  data[[feature]] <- as.numeric(data[[feature]])
+  
+  # Compute Q1, Q3, and IQR
+  Q1 <- quantile(data[[feature]], 0.25, na.rm = TRUE)
+  Q3 <- quantile(data[[feature]], 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  
+  # Define lower and upper bounds for outliers
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  
+  # Count outliers
+  outlier_count <- sum(data[[feature]] < lower_bound | data[[feature]] > upper_bound, na.rm = TRUE)
+  
+  # Add results to the summary data frame
+  outlier_summary <- rbind(outlier_summary, data.frame(Feature = feature, Outlier_Count = outlier_count))
+}
+
+# Sort by Outlier Count
+outlier_summary <- outlier_summary[order(-outlier_summary$Outlier_Count), ]
+
+# Display the outlier summary
+print("Outlier summary for the dataset")
+print(outlier_summary)
+```
+
+### Handling outliers
+```{r, echo=FALSE, warning=FALSE}
+#PLT
+data$platelet.count..PLT.[data$platelet.count..PLT. == 3335] <- NA
+# Imputing the missing value with the median of the available data
+median_value <- median(data$platelet.count..PLT., na.rm = TRUE)
+data$platelet.count..PLT.[is.na(data$platelet.count..PLT.)] <- median_value
+
+# LDT
+data$lactate.dehydrogenase.test[data$lactate.dehydrogenase.test == 1128] <- NA
+# Imputing the missing value with the median of the available data
+median_value <- median(data$lactate.dehydrogenase.test, na.rm = TRUE)
+data$lactate.dehydrogenase.test[is.na(data$lactate.dehydrogenase.test)] <- median_value
+
+#PFWC
+data$pleural.fluid.WBC.count[data$pleural.fluid.WBC.count == 21500] <- NA
+# Imputing the missing value with the median of the available data
+median_value <- median(data$pleural.fluid.WBC.count, na.rm = TRUE)
+data$pleural.fluid.WBC.count[is.na(data$pleural.fluid.WBC.count)] <- median_value
+
+library(DescTools)
+#ALP
+data$alkaline.phosphatise..ALP. <- Winsorize(data$alkaline.phosphatise..ALP., val = quantile(data$alkaline.phosphatise..ALP., probs = c(0.05, 0.95), na.rm= FALSE))
+
+#TP
+data$total.protein <- Winsorize(data$total.protein, val = quantile(data$total.protein, probs = c(0.05, 0.95), na.rm= FALSE))
+
+#Albumin 
+data$albumin <- Winsorize(data$albumin, val = quantile(data$albumin, probs = c(0.05, 0.95), na.rm= FALSE))
+
+#Glucose
+data$glucose <- Winsorize(data$glucose, val = quantile(data$glucose, probs = c(0.05, 0.95), na.rm= FALSE))
+
+#Pleural.lactic.dehydrogenise
+data$pleural.lactic.dehydrogenise<-log1p(data$pleural.lactic.dehydrogenise)
+
+#Duration of symptoms
+data$duration.of.symptoms<-log1p(data$duration.of.symptoms)
+
+#Pleural protein - FLAG
+data$zero_pleural_protein <- as.integer(data$pleural.protein == 0)
+
+#AGE
+age_breaks <- seq(min(data$age, na.rm = TRUE),
+max(data$age, na.rm = TRUE))
+
+# Apply binning to data
+data$age <- cut(data$age, breaks = age_breaks, labels = FALSE, include.lowest = TRUE)
+                             
+```
+
+```markdown
+
+I handled the outiers based on their distributions:
+**PLT (Platelet Count)**
+- Treating as extreme value of 3335 .  Imputing with the median preserves the central tendency of the data while being robust to other potential outliers.
+
+**LDT (Lactate Dehydrogenase Test)**
+- Replacement of 1128 with NA and imputation with median:
+Similar to PLT, the value 1128 is likely an outlier or error for lactate dehydrogenase levels. Replacing it with NA ensures accuracy.
+The median is a robust choice for imputation, minimizing bias introduced by other extreme values.
+
+**sedimentation**
+- From the histogram, the data for sedimentation follows a normal distribution. The outlier near 7 seen in the boxplot and suggested by the histogram tail might not significantly affect analyses assuming normality due to its isolation and the overall data distribution. 
+
+**Winsorization of ALP, Total Protein, Albumin, and Glucose**
+Winsorization:
+Applied to alkaline.phosphatise (ALP), total protein, albumin, and glucose to limit extreme values (outliers) by capping them at a specified percentile range (5th to 95th percentiles). This reduces the influence of outliers on statistical analyses and models while retaining the overall structure of the data.
+
+**PLD**
+- Logarithmic transformation (using log1p) is applied to handle skewness in the data. Biological markers like PLD often have a highly skewed distribution, and the logarithmic scale normalizes the range, improving linear modeling assumptions and interpretability.
+
+**PFWC (Pleural Fluid WBC Count)**
+- Imputing 21500 with median by considering it as NA value
+
+ 
+**Duration of Symptoms**
+Symptoms duration data often follow a skewed distribution (many short durations and fewer long ones). Applying log1p reduces skewness, making the data more normally distributed and suitable for linear models or statistical tests.
+
+**Pleural Protein (Zero-Flagging)**
+Creating a flag for pleural protein = 0:
+Cases where pleural protein is zero may indicate a unique subgroup of patients or a potential error. Creating a binary indicator (zero_pleural_protein) allows for separate analysis or modeling of such cases, avoiding distortion in downstream statistical tests or machine learning models.
+```
+
+
+
+## Collinearity analysis
+```{r, echo=FALSE}
+numeric_data <- data[sapply(data, is.numeric)]
+
+# Calculate correlation matrix
+correlation_matrix <- cor(numeric_data, use = "pairwise.complete.obs")
+
+highly_correlated <- which(abs(correlation_matrix) > 0.8 & abs(correlation_matrix) < 1, arr.ind = TRUE)
+
+# Display highly correlated pairs
+if (length(highly_correlated) > 0) {
+  correlated_pairs <- data.frame(
+    Variable1 = rownames(correlation_matrix)[highly_correlated[, 1]],
+    Variable2 = colnames(correlation_matrix)[highly_correlated[, 2]],
+    Correlation = correlation_matrix[highly_correlated]
+  )
+  print("The highly correlated pairs are")
+  print(correlated_pairs)
+  print("PCA required for handling collinearity")
+} else {
+  print("No highly correlated pairs found.")
+}
+
+# Visualize the correlation matrix (optional)
+library(corrplot)
+corrplot(correlation_matrix, method = "color", tl.cex = 0.8)
+```
+
+
+
+## Normalization
+```{r, echo=FALSE}
+# Reorder columns to move 'diagnosis.method' to the last position
+data <- data[, c(setdiff(colnames(data), "diagnosis.method"), "diagnosis.method")]
+
+
+# Loop through each numeric column in the data
+for (col_name in names(data)) {
+  # Check if the column is numeric
+  if (is.numeric(data[[col_name]])) {
+    # Calculate the mean and standard deviation
+    col_mean <- mean(data[[col_name]], na.rm = TRUE)
+    col_sd <- sd(data[[col_name]], na.rm = TRUE)
+    
+    # Apply Z-score normalization
+    data[[col_name]] <- (data[[col_name]] - col_mean) / col_sd
+  }
+}
+```
+
+In my project, I worked with features that had varying scales, such as some values in the range of 0–1 and others in the range of thousands (like lab test results or continuous measurements). To ensure that these differences didn’t negatively impact the performance of my machine learning models, I applied data normalization as a preprocessing step.
+
+
+
+
+`\newpage`
+
+
+# Model Construction
+## Test train split
+```{r, echo=FALSE}
+# Set seed for reproducibility
+set.seed(123)
+
+# Define the proportion of data for training
+train_proportion <- 0.7
+
+# Create a random sample of row indices for training
+train_indices <- sample(1:nrow(data), size = floor(train_proportion * nrow(data)))
+
+# Split the data
+train_data <- data[train_indices, ]  # Training set
+test_data <- data[-train_indices, ]  # Test set
+
+# Check the dimensions of the split data
+cat("Training data dimensions:", dim(train_data), "\n")
+cat("Test data dimensions:", dim(test_data), "\n")
+
+```
+
+
+
+Doing PCA for dimensionality reduction
+
+## Principal Component Analysis
+```{r, echo=FALSE, warning=FALSE}
+library(e1071)
+library(caret)
+
+# Step 1: Scale training features
+train_features <- train_data[, -ncol(train_data)]  # Exclude target variable
+train_scaled <- scale(train_features)  # Standardize training data
+
+# Step 2: Perform PCA on the training data
+pca_result <- prcomp(train_scaled, center = TRUE, scale. = TRUE)
+
+# Check variance explained by components
+summary(pca_result)
+
+# Step 3: Select number of components (adjustable)
+num_components <- 10  # Adjust as needed
+train_pca <- as.data.frame(predict(pca_result, train_scaled)[, 1:num_components])
+
+# Add the target variable back to the training data
+train_pca$diagnosis.method <- train_data$diagnosis.method
+
+# Step 4: Transform test data using the PCA fitted on training data
+test_features <- test_data[, -ncol(test_data)]  # Exclude target variable
+test_scaled <- scale(
+  test_features, 
+  center = attr(train_scaled, "scaled:center"), 
+  scale = attr(train_scaled, "scaled:scale")  # Use training scaling parameters
+)
+test_pca <- as.data.frame(predict(pca_result, test_scaled)[, 1:num_components])
+
+# Add the target variable back to the test data
+test_pca$diagnosis.method <- test_data$diagnosis.method
+```
+
+```markdown 
+I will be using PCA for algorithms like Logistic Regression, SVM, or kNN, which are sensitive to feature scaling, multicollinearity, or high dimensionality.
+For Random Forest, I would stick to the original features (or the reduced features which are selected using Gini Index) without applying PCA.
+
+Random Forest does not need PCA due to its robustness to multicollinearity and ability to handle irrelevant features. PCA is more suited to algorithms that assume feature independence or linear relationships.
+```
+
+
+
+
+`\newpage`
+
+
+
+## <center>Model A: RANDOM FOREST</center>
+### Random Forest on Full dataset
+```{r, echo=FALSE, warning=FALSE}
+library(randomForest)
+rfmodel_full <- randomForest(diagnosis.method ~ ., data = train_data, ntree = 100)
+#summary(rfmodel)
+
+library(caret)
+predictions_rf <- predict(rfmodel_full, newdata = test_data)
+feature_importance <- importance(rfmodel_full)
+
+conf_matrix_rf <- confusionMatrix(predictions_rf, test_data$diagnosis.method)
+
+accuracy <- unname(conf_matrix_rf$overall["Accuracy"])
+precision <- unname(conf_matrix_rf$byClass["Pos Pred Value"])
+recall <- unname(conf_matrix_rf$byClass["Sensitivity"])
+f1_score <- unname(2 * ((precision * recall) / (precision + recall)))
+
+
+probab <- predict(rfmodel_full, newdata = test_data, type = "prob")[, 2]
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data$diagnosis.method, probab)
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for Random Forest")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = accuracy,
+  Precision = precision,
+  Recall = recall,
+  F1_Score = f1_score,
+  AUC = auc_value,
+  MAD = mad,
+  MSE = mse,
+  RMSE = rmse,
+  R_Squared = r_squared
+)
+
+metrics_df <- data.frame(
+  Metric = gsub("\\..*", "", names(metrics)),  # Remove nested names
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Full Dataset (Random Forest Model)")
+
+
+```
+
+
+```markdown
+## Random Forest Model Performance
+
+The Random Forest model was evaluated on the dataset using several metrics to assess its classification performance comprehensively. The following metrics summarize the model's results:
+
+### **Key Metrics**
+1. **Accuracy**: 
+   - The model achieved an accuracy of **`r metrics$Accuracy`**, indicating that approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct. 
+   - While accuracy is a good initial measure, it can be misleading in imbalanced datasets.
+
+2. **Precision**: 
+   - Precision was **`r format(metrics$Precision, 4)`**, showing that when the model predicted the positive class (diagnosis), `r format(metrics$Precision * 100, 2)`% of the predictions were correct.
+   - This is a crucial metric in cases where false positives carry a significant cost.
+
+3. **Recall (Sensitivity)**:
+   - The recall value was relatively low at **`r format(metrics$Recall, 4)`**, meaning the model only correctly identified `r format(metrics$Recall * 100, 2)`% of actual positive cases.
+   - This suggests the model struggled to capture true positives, which could be problematic in medical contexts where identifying positive cases is critical.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**. 
+   - The low value indicates an imbalance between precision and recall, emphasizing the model's difficulty in detecting true positives.
+
+5. **AUC (Area Under the Curve)**:
+   - The AUC score was **`r format(metrics$AUC, 4)`**, indicating that the model has slightly better-than-random discrimination ability for distinguishing between the classes. 
+   - This value suggests room for significant improvement in the model's ability to rank predictions.
+
+### **Error Metrics**
+1. **Mean Absolute Deviation (MAD)**:
+   - The MAD was **`r format(metrics$MAD, 4)`**, reflecting the average absolute error in the predicted probabilities compared to the true labels.
+
+2. **Mean Squared Error (MSE)**:
+   - The MSE was **`r format(metrics$MSE, 4)`**, representing the average squared difference between the predicted probabilities and the true labels.
+
+3. **Root Mean Squared Error (RMSE)**:
+   - The RMSE was **`r format(metrics$RMSE, 4)`**, showing the typical magnitude of prediction errors. 
+   - A lower RMSE indicates better model performance, but this value suggests room for improvement.
+
+4. **R-Squared (Pseudo R² for Classification)**:
+   - The R² value was **`r format(metrics$R_Squared, 4)`**, implying that the model explains no variance in the data beyond random guessing. 
+   - Negative R² values suggest that the model performs worse than a simple baseline model.
+
+### **Summary**
+- While the Random Forest model achieved moderate accuracy and precision, the low recall and F1-Score highlight its difficulty in identifying true positives.
+- The AUC of **`r format(metrics$AUC, 4)`** suggests that the model performs only marginally better than random guessing.
+- The error metrics (MAD, MSE, RMSE) and the R² further emphasize the need for optimization.
+
+### **Conclusion**
+The current Random Forest model shows potential but requires significant improvement to handle imbalanced datasets effectively and improve recall and F1-Score. Incorporating sampling methods like SMOTE or hyperparameter tuning could be explored to enhance its performance.
+
+```
+
+
+I wanted to test the model performance with selecting a few features based on Gini Index from random forest model
+```{r, echo=FALSE}
+feature_importance_df <- as.data.frame(feature_importance)
+
+# Filter features with importance score greater than 2
+selected_features <- rownames(feature_importance_df)[feature_importance_df$MeanDecreaseGini > 4]
+
+# Print the selected features
+cat(paste("The features I selected were :"))
+
+print(selected_features)
+```
+
+
+### Random Forest on Reduced dataset
+```{r, echo=FALSE}
+# Subset the dataset using selected features
+reduced_data <- data[, selected_features]
+
+reduced_data$diagnosis.method <- data$diagnosis.method
+
+# Split the data into training and testing sets (80% train, 20% test)
+set.seed(123) 
+train_index <- createDataPartition(reduced_data$diagnosis.method, p = 0.7, list = FALSE)
+
+# Create training and testing sets
+train_data_reduced <- reduced_data[train_index, ]
+test_data_reduced <- reduced_data[-train_index, ]
+
+# View the dimensions of the training and testing datasets
+#cat("Training Set Dimensions:", dim(train_data_reduced), "\n")
+#cat("Testing Set Dimensions:", dim(test_data_reduced), "\n")
+
+rfmodel_red <- randomForest(diagnosis.method ~ ., data = train_data_reduced, ntree = 100)
+
+#STATS
+
+predictions_rf_red <- predict(rfmodel_red, newdata = test_data_reduced)
+conf_matrix <- confusionMatrix(predictions_rf_red, test_data_reduced$diagnosis.method)
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+
+probab <- predict(rfmodel_red, newdata = test_data_reduced, type = "prob")[, 2]
+
+# Compute ROC and AUC
+library(pROC)
+#roc_curve <- roc(test_data$diagnosis.method, probab)
+#auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for Random Forest")
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data_reduced$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+# RMSE
+rmse <- sqrt(mse)
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = accuracy,
+  Precision = precision,
+  Recall = recall,
+  F1_Score = f1_score,
+  AUC = auc_value,
+  MAD = mad,
+  MSE = mse,
+  RMSE = rmse,
+  R_Squared = r_squared
+)
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Reduced Dataset (Random Forest Model)")
+
+```
+```markdown
+## Random Forest Model Performance (Reduced Dataset)
+
+The Random Forest model was evaluated on the reduced dataset to assess its classification performance. The following metrics summarize the model's results:
+
+### **Key Metrics**
+1. **Accuracy**:
+   The model achieved an accuracy of **`r metrics$Accuracy`**, indicating that approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct. 
+   - This demonstrates a moderate improvement compared to using the full dataset, likely due to reduced noise and better feature selection.
+
+2. **Precision**:
+   - Precision was **`r format(metrics$Precision, 4)`**, showing that when the model predicted the positive class (diagnosis), `r format(metrics$Precision * 100, 2)`% of the predictions were correct.
+   - This indicates reasonable performance in avoiding false positives.
+
+3. **Recall (Sensitivity)**:
+   - The recall value was relatively low at **`r format(metrics$Recall, 4)`**, meaning the model only correctly identified `r format(metrics$Recall * 100, 2)`% of actual positive cases.
+   - This is an improvement over the recall from the full dataset, but there’s still room to enhance the model's ability to detect true positives.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**. 
+   - This value indicates a better trade-off between precision and recall compared to the previous evaluation with the full dataset.
+
+5. **AUC (Area Under the Curve)**:
+   - The AUC score was **`r format(metrics$AUC, 4)`**, indicating that the model has slightly better-than-random discrimination ability for distinguishing between the classes. 
+   
+   - This suggests the model is highly effective at ranking predictions for classification.
+
+### **Error Metrics**
+1. **Mean Absolute Deviation (MAD)**:
+    - The MAD was **`r format(metrics$MAD, 4)`**, reflecting the average absolute error in the predicted probabilities compared to the true labels.
+
+
+2. **Mean Squared Error (MSE)**:
+    - The MSE was **`r format(metrics$MSE, 4)`**, representing the average squared difference between the predicted probabilities and the true labels.
+
+
+3. **Root Mean Squared Error (RMSE)**:
+   - The RMSE was **`r format(metrics$RMSE, 4)`**, showing the typical magnitude of prediction errors. 
+
+4. **R-Squared (Pseudo R² for Classification)**:
+   - The R² value was **`r format(metrics$R_Squared, 4)`**, implying that the model explains no variance in the data beyond random guessing. 
+   - This is a substantial improvement, highlighting the effectiveness of using the reduced dataset.
+
+### **Summary**
+- The Random Forest model on the reduced dataset demonstrated improved accuracy, precision, recall, and F1-Score compared to the full dataset, reflecting the advantages of dimensionality reduction.
+- The AUC of **`r format(metrics$AUC, 4)`**  highlights the model's excellent ability to distinguish between the classes.
+- Error metrics (MAD, MSE, RMSE) and R² values further emphasize the enhanced performance of the model on the reduced dataset.
+
+### **Conclusion**
+The reduced dataset resulted in significant performance gains for the Random Forest model. This underscores the importance of feature selection and dimensionality reduction in improving model accuracy, interpretability, and computational efficiency. 
+
+```
+
+
+I did not use this model on PCA dataset as Random Forest handles original features well. 
+
+Random Forest models are inherently robust to noise, irrelevant features, and multicollinearity. PCA may not significantly improve performance unless the dataset is extremely high-dimensional or has strong correlations between features.
+
+
+`\newpage`
+
+
+## <center>Model B: SUPPORT VECTOR MACHINE</center>
+### SVM on full dataset
+```{r, echo=FALSE}
+svm_model <- svm(
+  diagnosis.method ~ ., 
+  data = train_data, 
+  kernel = "radial", 
+  cost = 1,
+  probability = TRUE  
+)
+predictions_svm <- predict(svm_model, test_data)
+
+conf_matrix_svm <- confusionMatrix(predictions_svm, test_data$diagnosis.method)
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix_svm$overall["Accuracy"]
+precision <- conf_matrix_svm$byClass["Pos Pred Value"]
+recall <- conf_matrix_svm$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+
+probab <- predict(svm_model, newdata = test_data, probability = TRUE)
+probab <- attr(probab, "probabilities")
+probab <- probab[, "1"]
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data$diagnosis.method, probab)
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for SVM")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = accuracy,
+  Precision = precision,
+  Recall = recall,
+  F1_Score = f1_score,
+  MAD = mad,
+  AUC= auc_value,
+  MSE = mse,
+  RMSE = rmse)
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Full Dataset (SVM model)")
+
+```
+
+```markdown
+## SVM Model Performance (Original Dataset)
+
+The SVM model was evaluated on the original dataset to assess its classification performance. The following metrics summarize the model's results:
+
+### **Key Metrics**
+1. **Accuracy**:
+   The model achieved an accuracy of **`r metrics$Accuracy`**, indicating that approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+   - This reflects the model's overall correctness but may not fully capture its performance for imbalanced data.
+
+2. **Precision**:
+   - Precision was **`r format(metrics$Precision, 4)`**, showing that when the model predicted the positive class, `r format(metrics$Precision * 100, 2)`% of the predictions were correct.
+   - This is crucial in scenarios where false positives carry significant costs.
+
+3. **Recall (Sensitivity)**:
+   - The recall value was **`r format(metrics$Recall, 4)`**, meaning the model successfully identified `r format(metrics$Recall * 100, 2)`% of actual positive cases.
+   - The relatively low recall indicates that the model might struggle to identify all true positives.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+   - This suggests the model has a moderate trade-off between precision and recall.
+
+
+### **Error Metrics**
+1. **Mean Absolute Deviation (MAD)**:
+    - The MAD was **`r format(metrics$MAD, 4)`**, reflecting the average absolute error in the predicted probabilities compared to the true labels.
+
+2. **Mean Squared Error (MSE)**:
+    - The MSE was **`r format(metrics$MSE, 4)`**, representing the average squared difference between the predicted probabilities and the true labels.
+
+3. **Root Mean Squared Error (RMSE)**:
+   - The RMSE was **`r format(metrics$RMSE, 4)`**, showing the typical magnitude of prediction errors.
+
+
+### **Summary**
+- The SVM model achieved reasonable accuracy and precision on the original dataset, although the low recall indicates challenges in identifying true positives.
+- The AUC of **`r format(metrics$AUC, 4)`** highlights the model's strong ability to distinguish between classes.
+- Error metrics (MAD, MSE, RMSE) and R² suggest areas where the model could be improved.
+
+### **Conclusion**
+The SVM model's performance on the original dataset highlights its strengths in precision and class distinction. 
+
+```
+
+### SVM on reduced data
+```{r, echo=FALSE}
+library(e1071)
+svm_model_red <- svm(
+  diagnosis.method ~ ., 
+  data = train_data_reduced, 
+  kernel = "radial", 
+  cost = 1,
+  probability = TRUE
+)
+predictions_svm_red <- predict(svm_model_red, test_data_reduced)
+
+
+conf_matrix <- confusionMatrix(predictions_svm_red, test_data_reduced$diagnosis.method)
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+
+probab <- predict(svm_model_red, newdata = test_data_reduced, probability = TRUE)
+probab <- attr(probab, "probabilities")
+probab <- probab[, "1"]
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data_reduced$diagnosis.method, probab)
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for SVM")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data_reduced$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = accuracy,
+  Precision = precision,
+  Recall = recall,
+  F1_Score = f1_score,
+  AUC = auc_value,
+  MAD = mad,
+  MSE = mse,
+  RMSE = rmse,
+  R_Squared = r_squared
+)
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Reduced Dataset (SVM)")
+
+
+```
+
+```markdown
+## SVM Model Performance (Reduced Dataset)
+
+The SVM model was evaluated on the reduced dataset, which was created using selected features to enhance interpretability and reduce noise. The following metrics summarize the model's results:
+
+### **Key Metrics**
+1. **Accuracy**:
+   The model achieved an accuracy of **`r metrics$Accuracy`**, meaning approximately **`r format(metrics$Accuracy * 100, 2)`%** of the predictions were correct.
+   - While the accuracy is moderate, it is not a comprehensive indicator for imbalanced datasets.
+
+2. **Precision**:
+   - Precision was **`r format(metrics$Precision, 4)`**, indicating that all predictions for the positive class were correct.
+   - This shows the model avoided false positives but at the cost of other performance metrics.
+
+3. **Recall (Sensitivity)**:
+   - The recall value was **`r format(metrics$Recall, 4)`**, meaning the model only correctly identified **`r format(metrics$Recall * 100, 2)`%** of the actual positive cases.
+   - This very low recall indicates the model struggles to identify true positives, which could be critical in a medical diagnosis context.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+   - The low F1-Score highlights the imbalance between precision and recall, suggesting limited effectiveness in handling the reduced dataset.
+
+5. **AUC (Area Under the Curve)**:
+   - The AUC score was **`r format(metrics$AUC, 4)`**, indicating that the model's ability to distinguish between classes is slightly better than random guessing.
+   - This suggests the model's overall class discrimination ability remains limited.
+
+### **Error Metrics**
+1. **Mean Absolute Deviation (MAD)**:
+    - The MAD was **`r format(metrics$MAD, 4)`**, reflecting the average absolute error in the predicted probabilities compared to the true labels.
+
+2. **Mean Squared Error (MSE)**:
+    - The MSE was **`r format(metrics$MSE, 4)`**, representing the average squared difference between the predicted probabilities and the true labels.
+
+3. **Root Mean Squared Error (RMSE)**:
+   - The RMSE was **`r format(metrics$RMSE, 4)`**, showing the typical magnitude of prediction errors. 
+   - This suggests moderate errors in the predictions.
+
+4. **R-Squared (Pseudo R² for Classification)**:
+   - The R² value was **`r format(metrics$R_Squared, 4)`**, implying that the model explains only **`r format(metrics$R_Squared * 100, 2)`%** of the variance in the data.
+   - This indicates limited improvement in explaining the variance with the reduced dataset.
+
+### **Summary**
+- The SVM model on the reduced dataset achieved high precision but suffered from extremely low recall, highlighting its difficulty in detecting positive cases.
+- The moderate AUC of **`r format(metrics$AUC, 4)`** indicates limited ability to discriminate between classes.
+- Error metrics (MAD, MSE, RMSE) and R² reveal moderate prediction errors and limited model improvement with dimensionality reduction.
+
+### **Conclusion**
+The reduced dataset did not significantly enhance the SVM model's performance. While precision improved, the model struggled with recall and overall predictive power. 
+
+```
+### SVM using PCA 
+```{r, echo=FALSE, warning=FALSE}
+# Step 5: Train the SVM model
+set.seed(123)  # For reproducibility
+svm_model_pca <- svm(
+  diagnosis.method ~ ., 
+  data = train_pca, 
+  kernel = "radial", 
+  cost = 1, 
+  gamma = 1 / num_components,  # Default gamma valu
+  probability = TRUE
+)
+
+# Step 6: Predict on the test data
+svm_predictions <- predict(svm_model_pca, newdata = test_pca)
+
+# Step 7: Evaluate the predictions
+conf_matrix <- confusionMatrix(
+  factor(svm_predictions, levels = levels(test_pca$diagnosis.method)), 
+  test_pca$diagnosis.method
+)
+
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+
+probab <- predict(svm_model_pca, newdata = test_pca, probability = TRUE)
+probab <- attr(probab, "probabilities")
+probab <- probab[, "1"]
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_pca$diagnosis.method, probab) 
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for SVM")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_pca$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = accuracy,
+  Precision = precision,
+  Recall = recall,
+  F1_Score = f1_score,
+  AUC_Value = auc_value,
+  MAD = mad,
+  MSE = mse,
+  RMSE = rmse
+)
+
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for PCA dataset (SVM)")
+```
+
+```markdown
+## SVM Model Performance (PCA Dataset)
+
+The SVM model was evaluated on the PCA-transformed dataset to assess its classification performance. The following metrics summarize the model's results:
+
+### **Key Metrics**
+1. **Accuracy**:
+   The model achieved an accuracy of **`r metrics$Accuracy`**, indicating that approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+
+
+2. **Precision**:
+   - Precision of **`r format(metrics$Precision, 4)`**, shows that when the model predicted the positive class, only `r format(metrics$Precision * 100, 2)`% of the predictions were correct.
+   - This indicates the model struggles to avoid false positives.
+
+3. **Recall (Sensitivity)**:
+   - The recall value was relatively low at **`r format(metrics$Recall, 4)`**, meaning the model identified only `r format(metrics$Recall * 100, 2)`% of the actual positive cases.
+   - This suggests difficulty in detecting true positives, which is critical in medical datasets.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+---
+
+### **Summary**
+- The SVM model on the PCA-transformed dataset achieved moderate accuracy but struggled with precision, recall, and F1-Score.
+- These results suggest that while dimensionality reduction via PCA simplified the dataset, the model may need further tuning to handle the transformed feature space effectively.
+
+```
+
+
+
+`\newpage`
+
+
+
+## <center>Model C: LOGISTIC REGRESSION</center>
+### Logistic Regression on FullDataset
+```{r, echo=FALSE}
+log_model <- glm(
+  diagnosis.method ~ ., 
+  data = train_data, 
+  family = binomial
+)
+log_predictions <- ifelse(
+  predict(log_model, test_data, type = "response") > 0.5, "1", "0"
+)
+conf_matrix <- confusionMatrix(as.factor(log_predictions), test_data$diagnosis.method)
+
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+probab <- predict(log_model, newdata = test_data)
+
+# Convert log-odds to probabilities
+probab <- plogis(probab)
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data$diagnosis.method, probab)
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for SVM")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = as.numeric(conf_matrix$overall["Accuracy"]),
+  Precision = as.numeric(conf_matrix$byClass["Pos Pred Value"]),
+  Recall = as.numeric(conf_matrix$byClass["Sensitivity"]),
+  F1_Score = as.numeric(2 * ((precision * recall) / (precision + recall))),
+  AUC_Value = as.numeric(auc_value),
+  MAD = as.numeric(mad),
+  MSE = as.numeric(mse),
+  RMSE = as.numeric(rmse)
+)
+
+
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Logistic Regression (Full dataset)")
+```
+
+```markdown
+## Logistic Regression Model Performance (Full Dataset)
+
+The Logistic Regression model was evaluated on the full dataset to assess its classification performance. 
+The following metrics summarize the results and provide insights into the model's effectiveness:
+
+### **Key Metrics**
+1. **Accuracy**:
+   - The model achieved an accuracy of **`r format(metrics$Accuracy, 4)`**, meaning approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+   - While accuracy is a standard metric, its interpretation can be misleading in the presence of class imbalance.
+
+2. **Precision**:
+   - Precision was **`r format(metrics$Precision, 4)`**, indicating that when the model predicted the positive class, `r format(metrics$Precision * 100, 2)`% of the predictions were correct.
+
+3. **Recall (Sensitivity)**:
+   - The recall value was **`r format(metrics$Recall, 4)`**, meaning the model captured only `r format(metrics$Recall * 100, 2)`% of the actual positive cases.
+   - This low recall indicates that the model struggles to detect true positives, which is critical in applications like medical diagnosis.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+   - The relatively low F1-Score reflects the trade-off between the model's precision and recall, emphasizing that it may not handle minority classes effectively.
+
+5. **AUC (Area Under the Curve)**:
+   - The AUC score was **`r format(metrics$AUC, 4)`**, suggesting that the model has slightly better-than-random discrimination ability.
+   - A low AUC indicates room for improvement in ranking predictions between the classes.
+
+### **Error Metrics**
+1. **Mean Absolute Deviation (MAD)**:
+   - The MAD was **`r format(metrics$MAD, 4)`**, representing the average absolute deviation of predicted probabilities from the true values.
+   - Lower MAD values indicate better model calibration.
+
+2. **Mean Squared Error (MSE)**:
+   - The MSE was **`r format(metrics$MSE, 4)`**, representing the average squared difference between the predicted and true labels.
+   - A moderate MSE reflects the presence of errors in the model’s predictions.
+
+3. **Root Mean Squared Error (RMSE)**:
+   - The RMSE was **`r format(metrics$RMSE, 4)`**, showing the typical magnitude of prediction errors. 
+   - A lower RMSE would indicate better overall performance.
+
+4. **R-Squared (Pseudo R² for Classification)**:
+   - The R² value was **`r format(metrics$R_Squared, 4)`**, which indicates that the model explains no variance in the data beyond random guessing.
+   - A negative R² suggests that the model is underperforming compared to a simple baseline.
+
+### **Interpretation and Insights**
+- The logistic regression model demonstrated moderate precision but struggled with recall, as reflected in the low F1-Score.
+- The AUC and error metrics indicate that the model has difficulty distinguishing between classes and requires optimization.
+- These results suggest that the model may benefit from additional preprocessing techniques, hyperparameter tuning, or advanced methods like regularization or ensemble learning.
+
+### **Conclusion**
+The logistic regression model shows limited performance on the full dataset, with challenges in handling imbalanced data and accurately identifying positive cases. Enhancements such as feature selection, SMOTE, or PCA could improve performance by addressing class imbalance and feature redundancy.
+
+```
+
+
+### Logistic Regression on Reduced data
+```{r, echo=FALSE}
+levels(train_data_reduced$diagnosis.method) <- c("0", "1")
+levels(test_data_reduced$diagnosis.method) <- c("0", "1")
+log_model_red <- glm(
+  diagnosis.method ~ ., 
+  data = train_data_reduced, 
+  family = binomial
+)
+predictions_log_red <- ifelse(
+  predict(log_model_red, test_data_reduced, type = "response") > 0.5, "1", "0"
+)
+conf_matrix <- confusionMatrix(as.factor(predictions_log_red), test_data_reduced$diagnosis.method)
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+probab <- predict(log_model_red, newdata = test_data_reduced)
+
+# Convert log-odds to probabilities
+probab <- plogis(probab)
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data_reduced$diagnosis.method, probab) 
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for SVM")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data_reduced$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+metrics <- list(
+  Accuracy = as.numeric(conf_matrix$overall["Accuracy"]),
+  Precision = as.numeric(conf_matrix$byClass["Pos Pred Value"]),
+  Recall = as.numeric(conf_matrix$byClass["Sensitivity"]),
+  F1_Score = as.numeric(2 * ((precision * recall) / (precision + recall))),
+  AUC_Value = as.numeric(auc_value),
+  MAD = as.numeric(mad),
+  MSE = as.numeric(mse),
+  RMSE = as.numeric(rmse)
+)
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Logistic Regression (Reduced dataset)")
+
+```
+
+```markdown
+## Logistic Regression Model Performance (Reduced Dataset)
+
+The Logistic Regression model was evaluated on the reduced dataset, where feature selection was applied to improve model performance by focusing on the most relevant predictors. Below is a summary of the key metrics:
+
+### **Key Metrics**
+1. **Accuracy**:
+   - The model achieved an accuracy of **`r metrics$Accuracy`**, indicating that approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+   - Compared to the full dataset (accuracy: **64.29%**), the accuracy improved, suggesting that reducing noise and irrelevant features helped the model make better predictions.
+
+2. **Precision**:
+   - The precision was **`r format(metrics$Precision, 4)`**, meaning that when the model predicted the positive class, `r format(metrics$Precision * 100, 2)`% of those predictions were correct.
+   - This is a significant improvement over the precision in the full dataset (**39.13%**), highlighting that the reduced dataset allowed the model to better focus on true positives and avoid false positives.
+
+3. **Recall (Sensitivity)**:
+   - The recall was **`r format(metrics$Recall, 4)`**, meaning the model identified `r format(metrics$Recall * 100, 2)`% of the actual positive cases.
+   - While recall remains low, it is slightly better than the full dataset recall (**30.00%**). This reflects the inherent trade-off in logistic regression between precision and recall.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+   - This is an improvement over the full dataset's F1-Score (**33.96%**). The better precision on the reduced dataset contributes to this gain, even though recall did not improve as significantly.
+
+### **Comparison with Full Dataset**
+- **Improved Accuracy**: The reduced dataset outperformed the full dataset in terms of accuracy, indicating that the model benefitted from removing irrelevant features.
+- **Better Precision**: Logistic regression on the reduced dataset showed a substantial improvement in precision, which suggests fewer false positives.
+- **Marginal Recall Improvement**: Recall increased slightly, but the model still struggles to identify a significant proportion of true positives.
+- **Balanced F1-Score**: The improved F1-Score reflects the better balance achieved between precision and recall on the reduced dataset.
+
+### **Conclusion**
+The reduced dataset allowed the Logistic Regression model to achieve better performance overall, particularly in terms of accuracy and precision. However, recall remains a challenge, indicating that the model's ability to detect true positives is still limited. This highlights the need for further optimization, such as tuning hyperparameters or applying sampling techniques (e.g., SMOTE) to address imbalanced data. 
+
+The comparison underscores the value of feature selection in improving classification models by reducing noise and focusing on relevant predictors.
+
+```
+
+
+### Logistic Regression on PCA dataset
+```{r, echo=FALSE}
+# Train a Logistic Regression model
+log_model_pca <- glm(
+  diagnosis.method ~ ., 
+  data = train_pca,
+  family = binomial
+)
+
+# Make predictions on the test set
+log_predictions <- ifelse(
+  predict(log_model_pca, newdata = test_pca, type = "response") > 0.5, 
+  "1", 
+  "0"
+)
+
+# Evaluate the model
+conf_matrix <- confusionMatrix(as.factor(log_predictions), as.factor(test_pca$diagnosis.method))
+
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+probab <- predict(log_model_pca, newdata = test_pca)
+
+# Convert log-odds to probabilities
+probab <- plogis(probab)
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_pca$diagnosis.method, probab) 
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for SVM")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_pca$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = as.numeric(conf_matrix$overall["Accuracy"]),
+  Precision = as.numeric(conf_matrix$byClass["Pos Pred Value"]),
+  Recall = as.numeric(conf_matrix$byClass["Sensitivity"]),
+  F1_Score = as.numeric(2 * ((precision * recall) / (precision + recall))),
+  AUC_Value = as.numeric(auc_value),
+  MAD = as.numeric(mad),
+  MSE = as.numeric(mse),
+  RMSE = as.numeric(rmse)
+)
+
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for Logistic Regression (PCA dataset)")
+```
+
+```markdown
+## Logistic Regression Model Performance (PCA Dataset)
+
+The Logistic Regression model was evaluated on the PCA-transformed dataset, where dimensionality reduction was applied to retain the most significant components of variance. This transformation helps reduce noise and mitigate multicollinearity issues. Below is a summary of the key metrics:
+
+### **Key Metrics**
+1. **Accuracy**:
+   - The model achieved an accuracy of **`r metrics$Accuracy`**, indicating that approximately `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+   - Compared to the full dataset (accuracy: **64.29%**) and the reduced dataset (accuracy: **72.92%**), the accuracy for the PCA dataset falls in between. While it did not perform as well as the reduced dataset, the PCA transformation still improved accuracy over the full dataset.
+
+2. **Precision**:
+   - The precision was **`r format(metrics$Precision, 4)`**, meaning that when the model predicted the positive class, `r format(metrics$Precision * 100, 2)`% of those predictions were correct.
+   - Precision was better than the full dataset (**39.13%**) but lower than the reduced dataset (**60.00%**), suggesting that while PCA removed noise, it may have lost some critical features that impacted the ability to reduce false positives.
+
+3. **Recall (Sensitivity)**:
+   - The recall was **`r format(metrics$Recall, 4)`**, meaning the model identified `r format(metrics$Recall * 100, 2)`% of the actual positive cases.
+   - This is lower than both the full dataset (**30.00%**) and the reduced dataset (**21.43%**). The drop in recall suggests that PCA may have overlooked some important variance needed to identify true positives effectively.
+
+4. **F1-Score**:
+   - The F1-Score, which balances precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+   - The F1-Score is higher than the full dataset (**33.96%**) but lower than the reduced dataset (**31.58%**). This reflects a moderate balance between precision and recall but highlights room for improvement.
+
+### **Comparison with Other Datasets**
+- **Improved Accuracy**: PCA improves accuracy over the full dataset but does not outperform the reduced dataset. This suggests that while dimensionality reduction helps, targeted feature selection may retain more critical information.
+- **Moderate Precision**: Precision improved over the full dataset, indicating better performance in reducing false positives, but PCA was less effective than the reduced dataset in this aspect.
+- **Reduced Recall**: The PCA transformation negatively impacted recall, implying that some critical components needed for detecting true positives were lost in the dimensionality reduction process.
+
+### **Conclusion**
+The PCA-transformed dataset allowed the Logistic Regression model to perform moderately well, balancing accuracy and precision improvements over the full dataset. However, it struggled with recall, which highlights the trade-off associated with dimensionality reduction. 
+
+PCA is beneficial when the dataset has multicollinearity or too many features, but it may not outperform a carefully reduced dataset created with domain knowledge and feature selection.
+
+```
+
+
+
+## <center>Model D: K-NEAREST NEIGHBOURS</center>
+
+### kNN on Full dataset
+```{r, echo=FALSE}
+set.seed(123)  # For reproducibility
+set.seed(123)
+knn_model <- train(
+  diagnosis.method ~ ., 
+  data = train_data, 
+  method = "knn"  # No cross-validation specified
+)
+
+# Default resampling behavior (single split resampling)
+print(knn_model)
+
+
+# Make predictions on the test set
+knn_predictions <- predict(knn_model, newdata = test_data)
+
+# Confusion matrix for evaluation
+conf_matrix <- confusionMatrix(
+  knn_predictions,
+  test_data$diagnosis.method
+)
+
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+
+
+probab <- predict(knn_model, newdata = test_data, type="prob")[,2]
+
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data$diagnosis.method, probab)
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for kNN(Full dataset)")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = as.numeric(conf_matrix$overall["Accuracy"]),
+  Precision = as.numeric(conf_matrix$byClass["Pos Pred Value"]),
+  Recall = as.numeric(conf_matrix$byClass["Sensitivity"]),
+  F1_Score = as.numeric(2 * ((precision * recall) / (precision + recall))),
+  AUC_Value = as.numeric(auc_value),
+  MAD = as.numeric(mad),
+  MSE = as.numeric(mse),
+  RMSE = as.numeric(rmse)
+)
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for kNN (Full dataset)")
+
+```
+
+
+```markdown
+## k-Nearest Neighbors (kNN) Model Performance (Full Dataset)
+
+The k-Nearest Neighbors (kNN) model was evaluated on the full dataset, which retains all original features without dimensionality reduction or feature selection. The following metrics summarize the model's performance:
+
+### **Key Metrics**
+1. **Accuracy**:
+   - The model achieved an accuracy of **`r metrics$Accuracy`**, meaning `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+   - This reflects a moderate performance, comparable to other models evaluated on the full dataset.
+
+2. **Precision**:
+   - The precision was **`r format(metrics$Precision, 4)`**, indicating that `r format(metrics$Precision * 100, 2)`% of the positive predictions were correct.
+   - This value is slightly better than random guessing but shows room for improvement in reducing false positives.
+
+3. **Recall (Sensitivity)**:
+   - Recall was **`r format(metrics$Recall, 4)`**, meaning the model correctly identified `r format(metrics$Recall * 100, 2)`% of the actual positive cases.
+   - The low recall value indicates difficulty in identifying true positives, which can be a concern in applications where positive case identification is critical.
+
+4. **F1-Score**:
+   - The F1-Score, a harmonic mean of precision and recall, was **`r format(metrics$F1_Score, 4)`**.
+   - This value highlights the trade-off between precision and recall, emphasizing the need for further optimization to improve the model's balance.
+
+
+### **Error Metrics**
+1. **Mean Absolute Deviation (MAD)**:
+   - The MAD was **`r format(metrics$MAD, 4)`**, reflecting the average absolute error between the predicted probabilities and true labels.
+
+2. **Mean Squared Error (MSE)**:
+   - The MSE was **`r format(metrics$MSE, 4)`**, representing the average squared difference between predicted probabilities and actual labels.
+
+3. **Root Mean Squared Error (RMSE)**:
+   - The RMSE was **`r format(metrics$RMSE, 4)`**, showing the typical magnitude of errors in predictions.
+
+4. **R-Squared (Pseudo R² for Classification)**:
+   - The R² value was **`r format(metrics$R_Squared, 4)`**, suggesting that the model explains very little variance in the data.
+   - The negative R² value indicates the model performs worse than a baseline predictor.
+
+### **Comparison and Observations**
+- **Strengths**:
+  - The kNN model demonstrated decent accuracy and precision on the full dataset, making it a reasonable choice for applications that prioritize reducing false positives.
+  - It performed slightly better in precision than recall, meaning it is more conservative in predicting the positive class.
+
+- **Weaknesses**:
+  - The recall and F1-Score suggest the model struggled with identifying true positives effectively.
+  - AUC and error metrics show room for optimization in terms of both class separation and error reduction.
+
+### **Conclusion**
+The kNN model on the full dataset demonstrated moderate performance, with reasonable accuracy and precision but weaker recall and F1-Score. While it is a viable model, further enhancements, such as feature selection, hyperparameter tuning, or data preprocessing (e.g., SMOTE for imbalanced data), are recommended to improve recall and overall classification performance.
+
+```
+
+
+### KNN on Reduced dataset
+```{r, echo=FALSE}
+set.seed(123)  # For reproducibility
+
+
+knn_model_red <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced, 
+  method = "knn"  # No cross-validation specified
+)
+
+
+# Print the best k and the model summary
+print(knn_model_red)
+
+# Make predictions on the test set
+knn_predictions_red <- predict(knn_model_red, newdata = test_data_reduced)
+
+# Confusion matrix for evaluation
+conf_matrix <- confusionMatrix(
+  knn_predictions_red,
+  test_data_reduced$diagnosis.method
+)
+
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+probab <- predict(knn_model_red, newdata = test_data_reduced, type="prob")[,2]
+
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_data_reduced$diagnosis.method, probab)
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for kNN(reduced data)")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_data_reduced$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = as.numeric(conf_matrix$overall["Accuracy"]),
+  Precision = as.numeric(conf_matrix$byClass["Pos Pred Value"]),
+  Recall = as.numeric(conf_matrix$byClass["Sensitivity"]),
+  F1_Score = as.numeric(2 * ((precision * recall) / (precision + recall))),
+  AUC_Value = as.numeric(auc_value),
+  MAD = as.numeric(mad),
+  MSE = as.numeric(mse),
+  RMSE = as.numeric(rmse)
+)
+
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for kNN (reduced dataset)")
+
+```
+
+```markdown
+## k-Nearest Neighbors (kNN) Model Performance (Reduced Dataset)
+
+The k-Nearest Neighbors (kNN) model was evaluated on the reduced dataset, which includes selected features based on the Gini index from the Random Forest model. The following metrics summarize the model's performance and provide a comparison with its performance on the full dataset.
+
+### **Key Metrics**
+1. **Accuracy**:
+   - The model achieved an accuracy of **`r metrics$Accuracy`** on the reduced dataset, meaning `r format(metrics$Accuracy * 100, 2)`% of the predictions were correct.
+   - This represents a slight decrease compared to the accuracy on the full dataset (`0.7143`), indicating that the reduced feature set might have led to some loss of information.
+
+2. **Precision**:
+   - This is lower than the precision on the full dataset (`0.5556`), suggesting that the reduced dataset increased the likelihood of false positives.
+
+3. **Recall (Sensitivity)**:
+   - The recall value is comparable to that of the full dataset (`0.3333`), showing that the model's ability to identify true positives was not significantly affected by the feature reduction.
+
+4. **F1-Score**:
+   - This value is lower than the F1-Score on the full dataset (`0.4167`), indicating that the reduced dataset led to a weaker balance between precision and recall.
+
+### **Comparison Between Full and Reduced Datasets**
+- **Strengths of the Reduced Dataset**:
+  - Feature reduction simplifies the model, making it computationally more efficient.
+  - The recall remained relatively stable, which is crucial for identifying true positives in imbalanced datasets.
+
+- **Weaknesses of the Reduced Dataset**:
+  - Accuracy, precision, and F1-Score decreased, suggesting that the reduced feature set might not capture all the essential patterns present in the full dataset.
+  - Precision, in particular, dropped significantly, highlighting an increased rate of false positives.
+
+### **Conclusion**
+The kNN model's performance on the reduced dataset highlights the trade-off between model simplicity and predictive power. While feature reduction improved computational efficiency and retained recall performance, it came at the cost of reduced accuracy, precision, and F1-Score. This underscores the importance of carefully selecting features to balance model complexity and performance, particularly for kNN, which is sensitive to the feature space.
+```
+
+### kNN using PCA dataset
+```{r, echo=FALSE}
+set.seed(123)  # For reproducibility
+
+knn_model_pca <- train(
+  diagnosis.method ~ ., 
+  data = train_pca, 
+  method = "knn"  # No cross-validation specified
+)
+
+# Default resampling behavior (single split resampling)
+print(knn_model)
+
+
+# Make predictions on the test set
+knn_predictions_pca <- predict(knn_model_pca, newdata = test_pca)
+
+# Confusion matrix for evaluation
+conf_matrix <- confusionMatrix(
+  knn_predictions_pca,
+  test_pca$diagnosis.method
+)
+
+# Extract metrics from confusion matrix
+accuracy <- conf_matrix$overall["Accuracy"]
+precision <- conf_matrix$byClass["Pos Pred Value"]
+recall <- conf_matrix$byClass["Sensitivity"]
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+probab <- predict(knn_model_pca, newdata = test_pca, type = "prob")[,2]
+
+
+# Compute ROC and AUC
+library(pROC)
+roc_curve <- roc(test_pca$diagnosis.method, probab) 
+auc_value <- auc(roc_curve)
+
+# Plot ROC Curve
+plot(roc_curve, col = "blue", main = "ROC Curve for kNN(PCA dataset)")
+
+
+# Gformat truth as numeric
+true_labels <- as.numeric(test_pca$diagnosis.method) - 1  # Convert factor levels to 0 and 1
+
+#Mean Absolute Deviation (MAD), Mean Squared Error (MSE), and Root Mean Squared Error (RMSE)
+# MAD
+mad <- mean(abs(probab - true_labels))
+
+
+# MSE
+mse <- mean((probab - true_labels)^2)
+
+
+# RMSE
+rmse <- sqrt(mse)
+
+
+# R-squared
+ss_total <- sum((true_labels - mean(true_labels))^2)
+ss_residual <- sum((true_labels - probab )^2)
+r_squared <- 1 - (ss_residual / ss_total)
+
+
+# Combine metrics
+metrics <- list(
+  Accuracy = as.numeric(conf_matrix$overall["Accuracy"]),
+  Precision = as.numeric(conf_matrix$byClass["Pos Pred Value"]),
+  Recall = as.numeric(conf_matrix$byClass["Sensitivity"]),
+  F1_Score = as.numeric(2 * ((precision * recall) / (precision + recall))),
+  AUC_Value = as.numeric(auc_value),
+  MAD = as.numeric(mad),
+  MSE = as.numeric(mse),
+  RMSE = as.numeric(rmse)
+)
+
+
+metrics_df <- data.frame(
+  Metric = names(metrics),
+  Value = unlist(metrics)
+)
+
+# Generate table using knitr::kable
+knitr::kable(metrics_df, caption = "Performance Metrics for kNN (PCA dataset)")
+```
+
+
+
+```markdown
+## k-Nearest Neighbors (kNN) Model Performance (PCA Dataset)
+
+The k-Nearest Neighbors (kNN) model was evaluated on the PCA-transformed dataset, which reduces dimensionality by retaining the most informative components of the data. Below is a detailed summary of the performance metrics and a comparison with its performance on the full and reduced datasets.
+
+### **Key Metrics**
+1. **Accuracy**:
+   - This accuracy is lower than that achieved on the full dataset (`0.7143`) and comparable to the reduced dataset (`0.6771`).
+
+2. **Precision**:
+   - This is slightly lower than the precision on the reduced dataset (`0.4211`) and significantly lower than the full dataset (`0.5556`).
+
+3. **Recall (Sensitivity)**:
+   - This recall value is significantly lower than both the full dataset (`0.3333`) and the reduced dataset (`0.2857`), highlighting the PCA transformation's negative impact on identifying true positives.
+
+4. **F1-Score**:
+   - This value is the lowest among all datasets, indicating poor balance between precision and recall compared to the full dataset (`0.4167`) and the reduced dataset (`0.3404`).
+
+### **Comparison Between Full, Reduced, and PCA Datasets**
+- **Strengths of the PCA Dataset**:
+  - PCA effectively reduces dimensionality, potentially addressing multicollinearity and computational concerns.
+  - The accuracy remains comparable to the reduced dataset, suggesting that PCA retains some essential patterns.
+
+- **Weaknesses of the PCA Dataset**:
+  - Recall is notably lower, indicating that the model struggles to identify true positives effectively.
+  - Both precision and F1-Score are significantly reduced, suggesting that the PCA transformation may have removed features critical for classification.
+  - This underperformance highlights the sensitivity of kNN to changes in feature space.
+
+### **Conclusion**
+While PCA offers advantages in terms of dimensionality reduction and addressing multicollinearity, the kNN model's performance on the PCA dataset is less effective compared to both the full and reduced datasets. The loss of critical information during PCA transformation appears to have compromised the model's ability to balance precision and recall, particularly for identifying true positives. This underscores the importance of carefully considering whether PCA is suitable for kNN models, especially for datasets where feature relationships play a critical role in classification performance.
+
+```
+
+`\newpage`
+
+## Comparative Analysis
+```{r, echo=FALSE}
+# Create a data frame with model metrics
+metrics_df <- data.frame(
+  Model_Dataset = c(
+    "Random Forest (Full)", "Random Forest (Reduced)", 
+    "SVM (Full)", "SVM (Reduced)", "SVM (PCA)",
+    "Logistic Regression (Full)", "Logistic Regression (Reduced)", "Logistic Regression (PCA)",
+    "kNN (Full)", "kNN (Reduced)", "kNN (PCA)"
+  ),
+  Accuracy = c(0.6938776, 0.7708333, 0.6938776, 0.7187500, 0.6632653,
+               0.6428571, 0.7291667, 0.6836735, 0.6734694, 0.6979167, 0.6836735),
+  Precision = c(0.5000000, 0.6875000, 0.5000000, 1.0000000, 0.2000000,
+                0.3913043, 0.6000000, 0.4615385, 0.4000000, 0.4444444, 0.4444444),
+  Recall = c(0.1000000, 0.3928571, 0.0666667, 0.0357143, 0.0333333,
+             0.3000000, 0.2142857, 0.2000000, 0.1333333, 0.1428571, 0.1333333),
+  F1_Score = c(0.1666667, 0.5000000, 0.1176471, 0.0689655, 0.0571429,
+               0.3396226, 0.3157895, 0.2790698, 0.2000000, 0.2162162, 0.2051282),
+  AUC = c(0.6191176, 0.6191176, 0.5210784, 0.5761555, 0.4769608,
+          0.6034314, 0.6391807, 0.5122549, 0.5100490, 0.5443803, 0.5495098)
+)
+library(knitr)
+
+# Generate a formatted table
+kable(
+  metrics_df, 
+  caption = "Comparative Analysis of Model Performance Across Datasets",
+  col.names = c("Model & Dataset", "Accuracy", "Precision", "Recall", "F1-Score", "AUC"),
+  digits = 3
+)
+
+```
+```markdown
+Insights from the Comparison
+**Random Forest**
+Best Dataset: Reduced Dataset:
+Achieves the highest accuracy (77.1%), F1-score (0.500), and precision (0.688).
+Recall improved significantly compared to the full dataset (39.3% vs. 10%).
+Performance on PCA Dataset: Not available for comparison, but RF benefits significantly from feature reduction (reduced dataset) over the full dataset.
+
+**Support Vector Machines**
+Best Dataset: Reduced Dataset:
+Achieves the highest accuracy (71.9%) and AUC (0.576). However, its recall (3.6%) and F1-score (0.069) are very poor, indicating severe overfitting to the majority class.
+Worst Dataset: PCA Dataset:
+Precision drops drastically to 20%, and recall falls to 3.3%, leading to a very low F1-score (0.057).
+
+
+**Logistic Regression**
+Best Dataset: Reduced Dataset:
+Achieves the highest accuracy (72.9%), precision (60.0%), and AUC (0.639). However, recall (21.4%) is still moderate, leading to an F1-score of 0.316.
+Performance on PCA Dataset:
+Accuracy (68.4%) and precision (46.2%) are decent, but recall drops to 20%, causing a lower F1-score (0.279).
+
+**kNN**
+Best Dataset: Reduced Dataset:
+Achieves the highest accuracy (69.8%), precision (44.4%), and F1-score (0.216). The AUC improves slightly to 0.544 compared to the full dataset.
+Worst Dataset: PCA Dataset:
+Performance metrics remain nearly identical to the full dataset, but the marginal drop in recall and F1-score makes PCA the least favorable dataset for kNN.
+
+
+**Model-to-Model Comparison**
+Overall Best Model:
+Random Forest on Reduced Dataset outperforms all other models in accuracy (77.1%) and F1-score (0.500). It balances precision and recall better than others.
+
+Best for Class Imbalance (Recall):
+Logistic Regression on Full Dataset achieves the highest recall (30%), albeit at the cost of lower precision (39.1%).
+
+Most Affected by PCA:
+Both SVM and kNN suffer the most from PCA-transformed datasets, with significant drops in precision, recall, and F1-scores.
+
+Performance Stability:
+Logistic regression shows relatively stable performance across datasets compared to models like SVM, which experiences drastic metric shifts.
+
+```
+
+
+
+
+`\newpage`
+## ENSEMBLE
+```{r, echo=FALSE}
+predictions_rf_red <- predict(rfmodel_red, newdata = test_data_reduced)
+
+predictions_svm_red <- predict(svm_model_red, test_data_reduced)
+
+predictions_log_red <- ifelse(
+  predict(log_model_red, test_data_reduced, type = "response") > 0.5, "1", "0")
+
+knn_predictions_red <- predict(knn_model_red, newdata = test_data_reduced)
+
+combined_predictions <- data.frame(
+  knn = knn_predictions_red,
+  rf = predictions_rf_red,
+  svm = predictions_svm_red,
+  log = predictions_log_red
+)
+
+# Ensure consistency in levels for all models
+for (col in names(combined_predictions)) {
+  combined_predictions[[col]] <- factor(
+    combined_predictions[[col]],
+    levels = levels(test_data_reduced$diagnosis.method)
+  )
+}
+
+# Majority vote ensemble
+final_predictions <- apply(combined_predictions, 1, function(row) {
+  as.character(names(which.max(table(row))))
+})
+
+# Convert ensemble predictions to a factor
+final_predictions <- factor(final_predictions, levels = levels(test_data_reduced$diagnosis.method))
+
+# Confusion matrix
+
+conf_matrix <- confusionMatrix(
+  final_predictions,
+  test_data_reduced$diagnosis.method
+)
+
+# Print the results
+print(conf_matrix)
+
+# Extract metrics from confusion matrix
+cat("Accuracy : ", accuracy <- conf_matrix$overall["Accuracy"])
+cat("Precision :", precision <- conf_matrix$byClass["Pos Pred Value"])
+cat("Recall :", recall <- conf_matrix$byClass["Sensitivity"])
+cat("F1-score :", f1_score <- 2 * ((precision * recall) / (precision + recall)))
+```
+```markdown
+**Justification for Using an Ensemble**
+
+- **Combining Strengths**: By combining predictions from multiple base models, the ensemble model leverages the complementary strengths of each algorithm. For example:
+  - Random Forest provides robustness against overfitting.
+  - SVM excels at handling complex decision boundaries.
+  - Logistic Regression offers interpretability.
+  - kNN captures local patterns in the data.
+
+- **Reducing Weaknesses**: The ensemble approach mitigates the weaknesses of individual models. For instance, while SVM may struggle with imbalanced datasets, and kNN can be sensitive to noisy data, the ensemble combines their outputs to produce a more robust prediction.
+
+- **Improved Generalization**: Majority voting in the ensemble model ensures better generalization on unseen data by reducing bias and variance from individual classifiers.
+
+### **Conclusion**
+The ensemble model achieved superior performance compared to individual classifiers, as reflected in its balanced accuracy and precision. The use of majority voting effectively combines the strengths of different algorithms, making the ensemble a reliable and robust approach for classification tasks. Its ability to handle imbalanced datasets and reduce classification errors demonstrates the power of ensemble learning in real-world scenarios.
+```
+
+
+
+
+## Using ensemble for making prediction on new data
+```{r, echo=FALSE}
+# Ensure required libraries are loaded
+library(caret)
+library(class)
+
+# Assume the first row of test_data is our new sample
+new_sample <- test_data_reduced[2, -ncol(test_data_reduced)]  # Exclude the target column
+true_label <- test_data_reduced$diagnosis.method[2]  # Actual label for reference
+
+# Step 1: Get Predictions from Individual Models
+# kNN Prediction
+knn_prediction_red <- knn(
+  train = train_data_reduced[, -ncol(train_data_reduced)], 
+  test = new_sample, 
+  cl = train_data_reduced$diagnosis.method, 
+  k = 5
+)
+
+predictions_rf_red <- predict(rfmodel_red, newdata = new_sample)
+
+predictions_svm_red <- predict(svm_model_red, new_sample)
+
+predictions_log_red <- ifelse(
+  predict(log_model_red, new_sample, type = "response") > 0.5, "1", "0")
+
+knn_predictions_red <- predict(knn_model_red, newdata = new_sample)
+
+# Step 2: Combine Predictions into a Data Frame
+combined_predictions <- data.frame(
+  knn = knn_predictions_red,
+  rf = predictions_rf_red,
+  svm = predictions_svm_red,
+  log = predictions_log_red
+)
+
+# Ensure Consistency in Levels for All Models
+for (col in names(combined_predictions)) {
+  combined_predictions[[col]] <- factor(
+    combined_predictions[[col]],
+    levels = levels(test_data$diagnosis.method)  # Match levels with the true labels
+  )
+}
+
+# Step 3: Combine All Predictions into a Vector
+model_predictions <- c(
+  knn = knn_prediction_red, 
+  rf = as.character(predictions_rf_red), 
+  svm = as.character(predictions_svm_red), 
+  log = predictions_log_red
+)
+
+# Display Individual Model Predictions
+cat("Individual Model Predictions:\n")
+print(model_predictions)
+
+# Step 4: Apply Majority Voting for Ensemble Prediction
+ensemble_prediction <- names(sort(table(model_predictions), decreasing = TRUE))[1]
+
+# Print the Final Ensemble Prediction and the True Label
+cat("\nEnsemble Prediction:", ensemble_prediction, "\n")
+cat("True Label:", as.character(true_label), "\n")
+```
+```markdown
+
+The example data I took here was the first row of the test data . 
+**Correct Prediction**: The ensemble model correctly predicted the class label for this sample as **`r ensemble_prediction`**, matching the true label of **`r true_label`**.
+
+
+### **Conclusion**
+This example highlights the power of ensemble learning in improving classification reliability. By combining predictions from multiple models, the ensemble mitigates errors from individual classifiers and provides a more robust and accurate prediction.
+
+```
+
+`\newpage`
+
+
+# BAGGING
+### Bagging with Random Forest
+```markdown
+Random Forest inherently uses bagging by default.
+It builds multiple decision trees, where each tree is trained on a random subset (with replacement) of the dataset. The final prediction is based on an aggregate of the predictions from all trees. So bagging is already applied.
+```
+
+
+## Bagging with Logistic Regression
+```{r, echo=FALSE}
+set.seed(123)
+
+# Bagging with logistic regression
+logistic_bagging_model <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced, 
+  method = "glm",           # Logistic Regression
+  family = "binomial",      # Specify logistic regression
+  trControl = trainControl(
+    method = "boot",        # Bootstrap resampling
+    number = 10,            # Number of bootstrap samples
+    savePredictions = "final"
+  )
+)
+
+# Print model results
+print(logistic_bagging_model)
+
+# Make predictions on the test set
+logistic_predictions <- predict(logistic_bagging_model, newdata = test_data_reduced)
+
+# Evaluate the model
+conf_matrix <- confusionMatrix(logistic_predictions, test_data_reduced$diagnosis.method)
+# Extract metrics from confusion matrix
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+
+```
+```markdown
+**Analysis of Bagging with Logistic Regression**
+Model Summary
+Model Type: Logistic Regression
+Resampling Method: Bootstrap with 10 repetitions
+Dataset:
+Training Samples: 228
+Predictors: 10
+Classes: Binary classification with Class_0 and Class_1
+
+- The kappa statistic indicates poor agreement between predicted and actual classes beyond chance levels. This suggests that the model struggles with class differentiation during resampling.
+
+**Observations**
+Class Imbalance:
+- The low recall suggests the model may struggle with class imbalance. Since the dataset has significantly more instances of one class, the model focuses on the majority class, leading to poor sensitivity for the minority class.
+
+Impact of Bagging:
+- Bagging improves model stability by reducing variance, especially for high-variance models. However, for logistic regression, a low-variance algorithm, the benefits may be limited.
+The modest improvement in accuracy on the test set suggests bagging provided some stability, but it was insufficient to address the imbalance in class predictions.
+
+Kappa Statistic:
+- A kappa value near zero during resampling reflects poor predictive agreement. This aligns with the low recall, indicating the model's inability to generalize well for minority class instances.
+
+```
+
+
+
+
+
+## Bagging with SVM
+```{r, echo=FALSE}
+# Load necessary libraries
+library(caret)
+library(e1071)
+levels(train_data_reduced$diagnosis.method) <- c("Class_0", "Class_1")
+levels(test_data_reduced$diagnosis.method) <- c("Class_0", "Class_1")
+
+# Check the levels to confirm
+print(levels(train_data_reduced$diagnosis.method))
+print(levels(test_data_reduced$diagnosis.method))
+
+# Define training control for bagging
+train_control <- trainControl(
+  method = "boot",         # Bootstrap resampling for bagging
+  number = 10,             # Number of bootstrap samples
+  savePredictions = "final", # Save all predictions for ensemble
+  classProbs = TRUE        # Enable probabilities for classification
+)
+
+# Train an SVM model using bagging
+set.seed(123)  # For reproducibility
+svm_bagging_model <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced,  # Use your reduced dataset here
+  method = "svmRadial",       # Radial kernel SVM
+  trControl = train_control,
+  tuneLength = 5              # Perform hyperparameter tuning
+)
+
+# Print the trained SVM bagging model
+print(svm_bagging_model)
+
+# Predict on the test set
+svm_bagging_predictions <- predict(svm_bagging_model, newdata = test_data_reduced)
+
+# Confusion matrix to evaluate the performance
+conf_matrix <- confusionMatrix(
+  svm_bagging_predictions,
+  test_data_reduced$diagnosis.method
+)
+cat("\n")
+# Extract metrics from confusion matrix
+cat("Performance Metrics : ", "\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+```
+```markdown
+**Analysis of Bagging with SVM (Support Vector Machines)**
+
+Model Summary
+Model Type: SVM with RBF Kernel
+
+Resampling Method: Bootstrap with 10 repetitions
+
+Hyperparameter Tuning:
+
+C (Regularization Parameter): Values tested: 0.25, 0.50, 1.00, 2.00, and 4.00.
+Sigma (Kernel Coefficient): Fixed at 0.07421194.
+The optimal model was selected based on the highest accuracy with 
+𝐶
+=
+1.00
+C=1.00.
+Dataset:
+
+Training Samples: 228
+Predictors: 10
+Classes: Binary classification (Class_0, Class_1)
+
+- Kappa values ranged from 0.075 to 0.127 across different C values, indicating poor agreement between predicted and actual classes.
+- The extremely low recall highlights the model's inability to detect the minority class. This is a common issue in imbalanced datasets, where the model heavily favors the majority class.
+- The perfect precision suggests the model is overly conservative in predicting the positive class. While it avoids false positives, it misses almost all true positives, making it unsuitable for applications where recall is critical (for example in medical diagnosis like this!)
+
+- While the optimal C value maximized resampling accuracy, it did not improve recall or the model's ability to handle imbalance
+```
+
+
+
+## Bagging with kNN
+```{r, echo=FALSE}
+library(caret)
+levels(train_data_reduced$diagnosis.method) <- c("0", "1")
+levels(test_data_reduced$diagnosis.method) <- c("0", "1")
+set.seed(123)
+
+# Define bagging parameters
+train_control <- trainControl(
+  method = "boot",         # Bootstrap resampling
+  number = 10,             # Number of bootstrap samples
+  savePredictions = "final"
+)
+
+# Train kNN model with bagging
+knn_bagging_model <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced,       
+  method = "knn",          # k-Nearest Neighbors
+  tuneGrid = expand.grid(k = seq(1, 21, by = 2)),  # Grid search for k
+  trControl = train_control
+)
+
+# Print the model
+print(knn_bagging_model)
+
+# Make predictions on the test set
+knn_predictions <- predict(knn_bagging_model, newdata = test_data_reduced)
+
+# Evaluate the model
+conf_matrix <- confusionMatrix(knn_predictions, test_data_reduced$diagnosis.method)
+
+cat("\n")
+# Extract metrics from confusion matrix
+cat("Performance Metrics : ", "\n")
+# Extract metrics from confusion matrix
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+
+
+```
+
+```markdown
+**Analysis of Bagging with k-Nearest Neighbors (kNN)** 
+Bagging was applied to the k-Nearest Neighbors (kNN) algorithm to evaluate its effectiveness on the dataset.
+
+Optimal Number of Neighbors (k):
+- A range of odd values for k from 1 to 21 was tested using bootstrap resampling.
+The model achieved the highest resampling accuracy with k=21, suggesting that a larger neighborhood provides better stability in this context.
+
+Resampling Performance:
+- Accuracy ranged from 0.611 (for k=1) to 0.669 (for k=21).
+Kappa values were low across all k, peaking at 0.113 (k=7) but generally indicating weak agreement between predictions and true labels. This suggests challenges in class separation.
+
+- While the Accuracy indicates moderate success, it does not guarantee balanced performance across classes.
+- The low F1-score highlights the poor balance between precision and recall. While the model avoids false positives, it fails to capture most true positives, limiting its utility in contexts requiring high recall.
+
+**Bagging Improved Stability, Not Recall:**
+
+- Bagging reduced variance and improved stability for higher k values, as evidenced by the smooth increase in accuracy with larger neighborhoods. However, it did not mitigate the fundamental issue of recall loss.
+
+High k as the Optimal Choice:
+- The selection of k=21 reflects a preference for larger neighborhoods, which smooths out noise in the dataset. This might improve overall accuracy but sacrifices sensitivity to subtle patterns, particularly those of the minority class.
+```
+
+
+
+
+# K-fold cross validation with Hyperparameter tuning 
+## 1. Random Forest with k-fold CV
+```{r, echo=FALSE}
+library(caret)
+
+set.seed(123)
+rf_model_cv <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced,
+  method = "rf",
+  tuneGrid = expand.grid(mtry = c(2, 3, 4)),
+  trControl = trainControl(method = "cv", number = 5))
+
+# Print Random Forest results
+print(rf_model_cv)
+
+predictions <- predict(rf_model_cv, newdata = test_data_reduced)
+conf_matrix<-confusionMatrix(predictions, test_data_reduced$diagnosis.method)
+
+cat("\n")
+# Extract metrics from confusion matrix
+cat("Performance Metrics : ", "\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+
+```
+```markdown
+Analysis of Random Forest with k-Fold Cross-Validation and Hyperparameter Tuning
+Random Forest (RF) was applied with k-fold cross-validation (CV) and hyperparameter tuning to evaluate its performance. Below is an analysis of the results, highlighting key observations and potential areas for improvement.
+
+Model Details
+Model Type: Random Forest
+Cross-Validation: 5-fold CV
+Data was split into 5 folds, with each fold used as a test set once while the other 4 folds were used for training.
+This approach ensures a robust evaluation of model performance and reduces the likelihood of overfitting.
+Tuning Parameter: mtry (Number of predictors to consider at each split)
+Tested values: 2, 3, 4.
+Optimal value: 
+mtry=2, based on the highest accuracy during resampling.
+
+Accuracy peaked at mtry=2, suggesting that considering fewer predictors at each split improved the model's ability to generalize.
+
+**Key Observations**
+Strengths:
+
+Random Forest performs well in terms of overall accuracy and precision compared to previously analyzed models (e.g., Logistic Regression, SVM, and kNN).
+The use of mtry=2 seems to balance variance reduction and model generalizability.
+Weaknesses:
+
+The model struggles with recall, as evidenced by its inability to identify a significant proportion of actual positive instances.
+Kappa remains low, reflecting issues in handling imbalanced classes.
+Effect of Hyperparameter Tuning:
+
+The tuning of mtry influenced accuracy, with mtry=2 providing the best results. Larger values might have introduced noise or irrelevant features during splits, reducing performance.
+
+```
+
+
+
+## 2. kNN with k-Fold CV
+```{r, echo=FALSE}
+library(caret)
+
+# Train a kNN model
+set.seed(123)  # For reproducibility
+knn_model_cv <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced, 
+  method = "knn",
+  tuneGrid = expand.grid(k = seq(1, 21, by = 2)),  # Trying odd values of k
+  trControl = trainControl(method = "cv", number = 3)  
+)
+# Print the best model
+print(knn_model_cv)
+
+# Evaluate on the test set
+knn_predictions <- predict(knn_model_cv, newdata = test_data_reduced)
+conf_matrix <- confusionMatrix(knn_predictions, test_data_reduced$diagnosis.method)
+
+cat("\n")
+# Extract metrics from confusion matrix
+cat("Performance Metrics : ", "\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+```
+```markdown
+**Analysis of k-Nearest Neighbors (kNN) with k-Fold Cross-Validation**
+The kNN algorithm was applied using k-fold cross-validation to evaluate its performance. Below is an in-depth analysis of the results.
+
+**Model Details**
+Model Type: k-Nearest Neighbors (kNN)
+Cross-Validation: 3-fold CV
+Data was divided into 3 folds, with each fold serving as a test set once while the remaining two folds were used for training.
+This provides a balance between computational efficiency and robust evaluation.
+Tuning Parameter: k (Number of neighbors)
+Tested odd values of k from 1 to 21.
+Optimal value: k=9, based on the highest accuracy during resampling.
+
+
+What the Values Indicate
+
+The optimalk represents a trade-off between noise reduction and information retention. Smaller values of 
+k (e.g. k=1) may overfit to local patterns, while larger values oversmooth the decision boundaries.
+
+Moderate Accuracy, Poor Recall:
+The moderate accuracy indicates that the model performs adequately in overall classification. However, its inability to identify positive instances is a significant drawback, limiting its utility for imbalanced datasets.
+
+Kappa Values:
+The generally low or negative Kappa values suggest that the model struggles to provide meaningful differentiation between the two classes.
+
+
+
+
+```
+
+
+## 3. Logistic Regression with k-Fold CV
+```{r, echo=FALSE}
+library(caret)
+levels(train_data_reduced$diagnosis.method) <- c("Class_0", "Class_1")
+levels(test_data_reduced$diagnosis.method) <- c("Class_0", "Class_1")
+
+
+# Define cross-validation control
+train_control <- trainControl(
+  method = "cv",         # Cross-validation
+  number = 5,            # Number of folds
+  verboseIter = TRUE,    # Show progress
+  classProbs = TRUE,     # Needed for AUC calculation
+  summaryFunction = twoClassSummary # Use AUC, sensitivity, and specificity
+)
+
+# Train logistic regression model with cross-validation
+set.seed(123)  # For reproducibility
+log_model_cv <- train(
+  diagnosis.method ~ ., 
+  data = train_data_reduced,  # Replace with your dataset
+  method = "glm",            # Generalized Linear Model (logistic regression)
+  family = "binomial",       # Specify logistic regression
+  metric = "ROC",            # Use AUC for model evaluation
+  trControl = train_control
+)
+
+# Print the cross-validation results
+print(log_model_cv)
+
+# Predict on the test set
+log_predictions <- predict(log_model_cv, newdata = test_data_reduced)
+
+# Evaluate the performance
+conf_matrix <- confusionMatrix(
+  log_predictions, 
+  test_data_reduced$diagnosis.method
+)
+
+cat("\n")
+# Extract metrics from confusion matrix
+cat("Performance Metrics : ", "\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+
+```
+```markdown
+**Analysis of Logistic Regression with k-Fold Cross-Validation**
+Logistic regression was applied using 5-fold cross-validation to evaluate its performance on the dataset. Below is an analysis of the results, highlighting the strengths and weaknesses of the model.
+
+**Model Details**
+Model Type: Logistic Regression (Generalized Linear Model)
+Cross-Validation: 5-Fold CV
+The dataset was divided into 5 folds, ensuring robust evaluation by using different subsets for training and testing during each iteration.
+Evaluation Metrics:
+The primary metric for hyperparameter tuning and evaluation was ROC AUC, which balances sensitivity and specificity.
+Secondary metrics included sensitivity (recall) and specificity.
+
+**Key Observations**
+Strengths:
+Logistic regression achieves decent accuracy and high specificity, making it effective at identifying the majority class.
+The moderate ROC AUC value suggests the model has some ability to differentiate between the two classes.
+Weaknesses:
+
+Low Recall: The model fails to capture most positive instances, which is critical in applications where the minority class holds more importance (e.g., medical diagnoses).
+Class Imbalance Impact: The high specificity and low sensitivity indicate a strong bias toward the majority class.
+
+
+**CONCLUSION**
+Logistic regression with k-fold CV performed moderately well, achieving a reasonable accuracy of 72.92%. However, its poor recall and low F1-score indicate struggles with the minority class, likely due to class imbalance. Addressing imbalance and focusing on recall-oriented metrics will be critical for improving its utility in imbalanced classification problems.
+
+```
+
+
+
+
+`\newpage`
+
+
+# UPSAMPLING WITH SMOTE
+When working with my dataset, I noticed a significant class imbalance. The majority class had far more instances than the minority class, which led to a common issue: my models were heavily biased toward the majority class, predicting it far more often and ignoring the minority class almost entirely. This imbalance was especially noticeable in metrics like recall and F1-score, where performance for the minority class was consistently poor.
+
+To tackle this, I applied SMOTE (Synthetic Minority Oversampling Technique)
+```{r, echo=FALSE}
+library(smotefamily)
+
+# I am keeping 10% of the original data and using the remaining 90% for SMOTE and then test it on the 10% i held out before
+
+# 90-10 split
+# Set seed for reproducibility
+set.seed(123)
+
+# Define the proportion of data for training
+train_proportion <- 0.9
+
+# Create a random sample of row indices for training
+train_indices <- sample(1:nrow(data), size = floor(train_proportion * nrow(data)))
+
+# Split the data
+train_smote <- data[train_indices, ]  # Training set
+validate_smote <- data[-train_indices, ]  # Test set
+
+# Check the dimensions of the split data
+cat("Training data dimensions:", dim(train_smote), "\n")
+cat("Test data dimensions:", dim(validate_smote), "\n")
+```
+
+
+```{r, echo=FALSE}
+# Apply SMOTE
+library(smotefamily)
+
+smote_result <- SMOTE(
+  X = train_smote[, -ncol(train_smote)], # Exclude the target column
+  target = train_smote$diagnosis.method, 
+  K = 5, 
+  dup_size = 2
+)
+
+# Combine the SMOTE result into a new data frame
+smote_data <- smote_result$data
+colnames(smote_data)[ncol(smote_data)] <- "diagnosis.method"
+
+# Convert the target variable back to a factor
+smote_data$diagnosis.method <- as.factor(smote_data$diagnosis.method)
+
+cat("Class distribution after SMOTE:\n")
+print(table(smote_data$diagnosis.method))
+
+
+# Verify the structure of the new dataset
+str(smote_data)
+```
+
+
+
+
+
+## Testing SMOTE on models
+
+### SUPPORT VECTOR MACHINES
+```{r, echo=FALSE}
+library(e1071)
+
+# Train SVM model on SMOTE data
+set.seed(123)
+svm_model <- svm(
+  diagnosis.method ~ ., 
+  data = smote_data, 
+  kernel = "radial",  # Use radial kernel; change to "linear" if needed
+  cost = 1, 
+  gamma = 1/ncol(smote_data)  # Default gamma value
+)
+
+# Make predictions on the test set
+svm_predictions <- predict(svm_model, newdata = validate_smote)
+
+# Evaluate performance
+conf_matrix_svm <- confusionMatrix(
+  svm_predictions,
+  validate_smote$diagnosis.method
+)
+
+# Print results
+print(conf_matrix_svm)
+
+cat("\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+```
+
+### RF -  should not be used as it RF already handles class imbalance well and the synthetic data might not represent the true distribution of the minority class, leading to less meaningful splits in Random Forest.
+
+
+### LOGISTIC REGRESSION
+```{r, echo=FALSE}
+set.seed(123)
+log_model <- glm(
+  diagnosis.method ~ ., 
+  data = smote_data, 
+  family = binomial
+)
+
+# Make predictions on the test set
+log_predictions_prob <- predict(log_model, newdata = validate_smote, type = "response")
+log_predictions <- ifelse(log_predictions_prob > 0.5, "1", "0")
+
+# Evaluate performance
+conf_matrix_log <- confusionMatrix(
+  as.factor(log_predictions),
+  validate_smote$diagnosis.method
+)
+
+# Print results
+print(conf_matrix_log)
+```
+
+
+### K NEAREST NEIGHBOURS
+```{r, echo=FALSE}
+
+# Load required library
+library(caret)
+
+# Ensure diagnosis.method is a factor
+smote_data$diagnosis.method <- as.factor(smote_data$diagnosis.method)
+
+# Train a kNN model using SMOTE data
+set.seed(123)  # For reproducibility
+knn_model <- train(
+  diagnosis.method ~ ., 
+  data = smote_data, 
+  method = "knn",
+  tuneGrid = expand.grid(k = seq(3, 21, by = 2)),  
+  trControl = trainControl(
+    method = "cv", 
+    number = 5,               # 5-fold cross-validation
+    sampling = "smote"        # Apply SMOTE within folds
+  )
+)
+
+# Print the best k and the model
+print(knn_model)
+
+validate_smote$lung.side <- as.numeric(as.character(validate_smote$lung.side))
+
+# Predict on the original test set (not SMOTE data)
+knn_predictions <- predict(knn_model, newdata = validate_smote)
+
+# Confusion matrix for evaluation
+conf_matrix <- confusionMatrix(
+  knn_predictions,
+  validate_smote$diagnosis.method
+)
+
+# Print the confusion matrix
+print(conf_matrix)
+cat("\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+```
+
+
+
+## Bagging with SMOTE 
+```{r, echo=FALSE}
+# Rename the levels of the diagnosis.method column
+levels(smote_data$diagnosis.method) <- c("Class_0", "Class_1")
+levels(validate_smote$diagnosis.method) <- c("Class_0", "Class_1")
+
+# Check the levels to confirm
+print(levels(smote_data$diagnosis.method))
+print(levels(validate_smote$diagnosis.method))
+
+# Now rerun the bagging SVM model
+train_control <- trainControl(
+  method = "boot",         # Bootstrap resampling for bagging
+  number = 10,             # Number of bootstrap samples
+  savePredictions = "final", # Save all predictions
+  classProbs = TRUE        # Enable probabilities for classification
+)
+
+# Train an SVM model using bagging
+set.seed(123)  # For reproducibility
+svm_bagging_model <- train(
+  diagnosis.method ~ ., 
+  data = smote_data,  # Use the reduced dataset
+  method = "svmRadial",       # Radial kernel SVM
+  trControl = train_control,
+  tuneLength = 5              # Grid search for hyperparameters
+)
+
+# Print the trained model
+print(svm_bagging_model)
+
+# Predict on the test set
+svm_bagging_predictions <- predict(svm_bagging_model, newdata = validate_smote)
+
+# Confusion matrix to evaluate the performance
+conf_matrix <- confusionMatrix(
+  svm_bagging_predictions,
+  validate_smote$diagnosis.method
+)
+
+# Print the confusion matrix
+print(conf_matrix)
+cat("\n")
+cat("Accuracy  :", conf_matrix$overall["Accuracy"], "\n")
+cat("Precision :", conf_matrix$byClass["Pos Pred Value"], "\n")
+cat("Recall    :", conf_matrix$byClass["Sensitivity"], "\n")
+cat("F1-score  :", 2 * ((conf_matrix$byClass["Pos Pred Value"] * conf_matrix$byClass["Sensitivity"]) / 
+                        (conf_matrix$byClass["Pos Pred Value"] + conf_matrix$byClass["Sensitivity"])), "\n")
+
+```
+
+
+### Conclusion for SMOTE analysis
+- Using SMOTE did not help with the performance. Based on the SMOTE analysis metric for each algorithm I infer that:
+1. Certain models like kNN, SVM are more sensitive to the distribution of samples, and synthetic samples can sometimes harm their performance and thereby lead to low performance.
+2. Models may overfit to noisy or irrelevant patterns introduced by synthetic samples.
+3.SMOTE creates synthetic samples by interpolating between minority class instances. If the minority class is not well-represented or has noisy/overlapping samples, the synthetic samples may not be representative of the actual data distribution.I believe these reasons could have hampered the desired performance.
+
+
+
+                                        **END OF DOCUMENT**
